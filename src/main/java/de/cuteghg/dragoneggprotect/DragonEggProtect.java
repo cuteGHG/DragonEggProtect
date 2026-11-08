@@ -6,6 +6,7 @@ import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
@@ -15,13 +16,16 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPhysicsEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.ItemDespawnEvent;
 import org.bukkit.event.entity.ItemMergeEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -35,7 +39,6 @@ import java.util.UUID;
 
 public final class DragonEggProtect extends JavaPlugin implements Listener {
     private final Map<UUID, Location> protectedDrops = new HashMap<>();
-    private final Set<UUID> restoring = new HashSet<>();
     private BukkitTask particleTask;
     private Location fallbackLocation;
 
@@ -63,10 +66,31 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
         if (isDragonEgg(event.getItemDrop().getItemStack())) protectDrop(event.getItemDrop());
     }
 
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onDeath(PlayerDeathEvent event) {
+        ItemStack egg = null;
+        for (ItemStack drop : event.getDrops()) {
+            if (isDragonEgg(drop)) {
+                egg = drop.clone();
+                event.getDrops().remove(drop);
+                break;
+            }
+        }
+        if (egg == null) return;
+
+        ItemStack droppedEgg = egg;
+        Location deathLocation = event.getEntity().getLocation().clone();
+        Bukkit.getScheduler().runTask(this, () -> {
+            Item item = deathLocation.getWorld().dropItem(deathLocation, droppedEgg);
+            protectDrop(item);
+        });
+    }
+
     private void protectDrop(Item item) {
         item.setGravity(false);
         item.setInvulnerable(true);
         item.setPersistent(true);
+        item.setGlowing(true);
         item.setVelocity(new Vector(0, 0, 0));
         item.setFireTicks(0);
         protectedDrops.put(item.getUniqueId(), item.getLocation().clone());
@@ -91,6 +115,7 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
             }
             item.setVelocity(new Vector(0, 0, 0));
             item.setFireTicks(0);
+            item.setGlowing(true);
             item.getWorld().spawnParticle(Particle.PORTAL, anchor.clone().add(0, 0.35, 0), 3, 0.22, 0.25, 0.22, 0.02);
         }
     }
@@ -123,14 +148,7 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
-        if (event.getBlock().getType() == Material.DRAGON_EGG) {
-            event.setCancelled(true);
-            if (fallbackLocation == null) {
-                World end = Bukkit.getWorlds().stream().filter(w -> w.getEnvironment() == World.Environment.THE_END).findFirst().orElse(null);
-                fallbackLocation = end != null ? new Location(end, 0, 64, 0) : event.getBlock().getLocation().clone();
-                saveFallback();
-            }
-        }
+        if (event.getBlock().getType() == Material.DRAGON_EGG) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -154,18 +172,23 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
         ItemStack[] contents = player.getInventory().getContents();
         boolean hadEgg = false;
         for (int i = 0; i < contents.length; i++) {
-            ItemStack stack = contents[i];
-            if (isDragonEgg(stack)) {
+            if (isDragonEgg(contents[i])) {
                 hadEgg = true;
                 contents[i] = null;
             }
         }
         if (!hadEgg) return;
+
         player.getInventory().setContents(contents);
         Location placeAt = player.getLocation().getBlock().getLocation();
         Block block = placeAt.getBlock();
         if (block.getType().isAir() || block.isPassable()) {
+            BlockState replacedState = block.getState();
             block.setType(Material.DRAGON_EGG, false);
+            // Notify other plugins that this egg was placed by this player.
+            BlockPlaceEvent placeEvent = new BlockPlaceEvent(block, replacedState, block.getRelative(0, -1, 0),
+                    new ItemStack(Material.DRAGON_EGG), player, true, EquipmentSlot.HAND);
+            Bukkit.getPluginManager().callEvent(placeEvent);
             if (fallbackLocation == null) {
                 fallbackLocation = placeAt.clone();
                 saveFallback();
@@ -174,24 +197,6 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
             Item drop = player.getWorld().dropItem(placeAt.add(0.5, 0.2, 0.5), new ItemStack(Material.DRAGON_EGG));
             protectDrop(drop);
         }
-    }
-
-    private void rememberAndRestore(Location location) {
-        if (fallbackLocation == null) {
-            fallbackLocation = location.clone();
-            saveFallback();
-        }
-        Location target = fallbackLocation.clone();
-        Bukkit.getScheduler().runTask(this, () -> {
-            if (target.getWorld() == null) return;
-            Block block = target.getBlock();
-            if (block.getType().isAir() || block.getType() == Material.FIRE || block.isPassable()) {
-                block.setType(Material.DRAGON_EGG, false);
-            } else {
-                Item item = target.getWorld().dropItem(target.clone().add(0.5, 0.2, 0.5), new ItemStack(Material.DRAGON_EGG));
-                protectDrop(item);
-            }
-        });
     }
 
     private void loadFallback() {
