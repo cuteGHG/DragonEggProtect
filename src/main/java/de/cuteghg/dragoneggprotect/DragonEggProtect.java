@@ -70,8 +70,9 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
         item.setVelocity(new Vector(0, 0, 0));
         item.setFireTicks(0);
         protectedDrops.put(item.getUniqueId(), item.getLocation().clone());
-        if (fallbackLocation == null && item.getWorld().getEnvironment() == World.Environment.THE_END) {
-            fallbackLocation = item.getLocation().clone();
+        if (fallbackLocation == null) {
+            World end = Bukkit.getWorlds().stream().filter(w -> w.getEnvironment() == World.Environment.THE_END).findFirst().orElse(null);
+            fallbackLocation = end != null ? new Location(end, 0, 64, 0) : item.getLocation().clone();
             saveFallback();
         }
     }
