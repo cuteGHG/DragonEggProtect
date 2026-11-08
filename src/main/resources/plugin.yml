@@ -1,0 +1,6 @@
+name: DragonEggProtect
+version: 1.0.0
+main: de.cuteghg.dragoneggprotect.DragonEggProtect
+api-version: '26.3'
+description: Protects the Ender Dragon egg from loss and destruction.
+author: cuteGHG
