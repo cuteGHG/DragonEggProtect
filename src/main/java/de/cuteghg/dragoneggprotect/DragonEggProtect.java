@@ -69,10 +69,12 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onDeath(PlayerDeathEvent event) {
         ItemStack egg = null;
-        for (ItemStack drop : event.getDrops()) {
+        java.util.Iterator<ItemStack> drops = event.getDrops().iterator();
+        while (drops.hasNext()) {
+            ItemStack drop = drops.next();
             if (isDragonEgg(drop)) {
                 egg = drop.clone();
-                event.getDrops().remove(drop);
+                drops.remove();
                 break;
             }
         }
