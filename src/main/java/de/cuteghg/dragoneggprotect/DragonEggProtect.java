@@ -14,6 +14,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.block.BlockPhysicsEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.ItemDespawnEvent;
@@ -125,8 +126,17 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
     public void onBlockBreak(BlockBreakEvent event) {
         if (event.getBlock().getType() == Material.DRAGON_EGG) {
             event.setCancelled(true);
-            rememberAndRestore(event.getBlock().getLocation());
+            if (fallbackLocation == null) {
+                World end = Bukkit.getWorlds().stream().filter(w -> w.getEnvironment() == World.Environment.THE_END).findFirst().orElse(null);
+                fallbackLocation = end != null ? new Location(end, 0, 64, 0) : event.getBlock().getLocation().clone();
+                saveFallback();
+            }
         }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPhysics(BlockPhysicsEvent event) {
+        if (event.getBlock().getType() == Material.DRAGON_EGG) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
