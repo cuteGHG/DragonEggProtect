@@ -21,6 +21,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.ItemDespawnEvent;
 import org.bukkit.event.entity.ItemMergeEvent;
+import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
@@ -64,6 +65,12 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDrop(PlayerDropItemEvent event) {
         if (isDragonEgg(event.getItemDrop().getItemStack())) protectDrop(event.getItemDrop());
+    }
+
+    // Covers every source of a dropped egg, including the torch-break trick.
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onItemSpawn(ItemSpawnEvent event) {
+        if (isDragonEgg(event.getEntity().getItemStack())) protectDrop(event.getEntity());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -150,11 +157,6 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
-        if (event.getBlock().getType() == Material.DRAGON_EGG) event.setCancelled(true);
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onPhysics(BlockPhysicsEvent event) {
         if (event.getBlock().getType() == Material.DRAGON_EGG) event.setCancelled(true);
     }
 
