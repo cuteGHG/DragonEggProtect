@@ -156,7 +156,10 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
         Block block = placeAt.getBlock();
         if (block.getType().isAir() || block.isPassable()) {
             block.setType(Material.DRAGON_EGG, false);
-            rememberAndRestore(placeAt);
+            if (fallbackLocation == null) {
+                fallbackLocation = placeAt.clone();
+                saveFallback();
+            }
         } else {
             Item drop = player.getWorld().dropItem(placeAt.add(0.5, 0.2, 0.5), new ItemStack(Material.DRAGON_EGG));
             protectDrop(drop);
