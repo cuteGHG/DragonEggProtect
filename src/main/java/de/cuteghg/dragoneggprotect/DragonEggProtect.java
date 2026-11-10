@@ -221,6 +221,10 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
     @Override
     public boolean onCommand(CommandSender sender, org.bukkit.command.Command command, String label, String[] args) {
         if (!command.getName().equalsIgnoreCase("dragonegg")) return false;
+        if (args.length != 1 || !args[0].equalsIgnoreCase("where")) {
+            sender.sendMessage("§cBenutzung: /dragonegg where");
+            return true;
+        }
         if (!sender.hasPermission("dragoneggprotect.where")) {
             sender.sendMessage("§cDazu hast du keine Berechtigung.");
             return true;
