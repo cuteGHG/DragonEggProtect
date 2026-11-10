@@ -4,3 +4,15 @@ main: de.cuteghg.dragoneggprotect.DragonEggProtect
 api-version: '26.3'
 description: Protects the Ender Dragon egg from loss and destruction.
 author: cuteGHG
+
+commands:
+  dragonegg:
+    description: Shows the dragon egg status and location.
+    usage: /dragonegg
+    aliases: [dragoneggwhere]
+    permission: dragoneggprotect.where
+    permission-message: "§cDazu hast du keine Berechtigung."
+permissions:
+  dragoneggprotect.where:
+    description: Allows checking the dragon egg location and holder.
+    default: op
