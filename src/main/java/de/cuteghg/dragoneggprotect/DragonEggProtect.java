@@ -46,6 +46,7 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
+        getCommand("dragonegg").setExecutor(this);
         getServer().getPluginManager().registerEvents(this, this);
         loadFallback();
         particleTask = Bukkit.getScheduler().runTaskTimer(this, this::tickProtectedDrops, 1L, 5L);
