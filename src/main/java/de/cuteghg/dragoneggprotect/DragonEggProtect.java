@@ -10,6 +10,7 @@ import org.bukkit.block.BlockState;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
+import org.bukkit.command.CommandSender;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -155,6 +156,20 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
         if (isDragonEgg(event.getItem().getItemStack())) protectedDrops.remove(event.getItem().getUniqueId());
     }
 
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEggPlaced(BlockPlaceEvent event) {
+        if (event.getBlockPlaced().getType() == Material.DRAGON_EGG) {
+            Location loc = event.getBlockPlaced().getLocation();
+            getConfig().set("egg.lastStatus", "placed");
+            getConfig().set("egg.world", loc.getWorld().getName());
+            getConfig().set("egg.x", loc.getBlockX());
+            getConfig().set("egg.y", loc.getBlockY());
+            getConfig().set("egg.z", loc.getBlockZ());
+            getConfig().set("egg.owner", event.getPlayer().getName());
+            saveConfig();
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         if (event.getBlock().getType() == Material.DRAGON_EGG) event.setCancelled(true);
@@ -201,6 +216,83 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
             Item drop = player.getWorld().dropItem(placeAt.add(0.5, 0.2, 0.5), new ItemStack(Material.DRAGON_EGG));
             protectDrop(drop);
         }
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, org.bukkit.command.Command command, String label, String[] args) {
+        if (!command.getName().equalsIgnoreCase("dragonegg")) return false;
+        if (!sender.hasPermission("dragoneggprotect.where")) {
+            sender.sendMessage("§cDazu hast du keine Berechtigung.");
+            return true;
+        }
+
+        // Check online inventories first, so the current holder is reported accurately.
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            for (ItemStack stack : player.getInventory().getContents()) {
+                if (isDragonEgg(stack)) {
+                    sender.sendMessage("§6Drachenei: §eIm Inventar von §f" + player.getName());
+                    sender.sendMessage("§7Position: §f" + formatLocation(player.getLocation()));
+                    return true;
+                }
+            }
+            if (isDragonEgg(player.getInventory().getItemInOffHand())) {
+                sender.sendMessage("§6Drachenei: §eIm Inventar von §f" + player.getName());
+                sender.sendMessage("§7Position: §f" + formatLocation(player.getLocation()));
+                return true;
+            }
+        }
+
+        // A dropped egg also has a precise location.
+        for (World world : Bukkit.getWorlds()) {
+            for (Entity entity : world.getEntities()) {
+                if (entity instanceof Item item && isDragonEgg(item.getItemStack())) {
+                    sender.sendMessage("§6Drachenei: §eAls Item fallengelassen");
+                    sender.sendMessage("§7Position: §f" + formatLocation(item.getLocation()));
+                    return true;
+                }
+            }
+        }
+
+        // Search already-loaded chunks only; this does not load chunks or cause world generation.
+        for (World world : Bukkit.getWorlds()) {
+            for (org.bukkit.Chunk chunk : world.getLoadedChunks()) {
+                int minY = world.getMinHeight();
+                int maxY = world.getMaxHeight();
+                for (int x = 0; x < 16; x++) {
+                    for (int z = 0; z < 16; z++) {
+                        for (int y = minY; y < maxY; y++) {
+                            Block block = chunk.getBlock(x, y, z);
+                            if (block.getType() == Material.DRAGON_EGG) {
+                                sender.sendMessage("§6Drachenei: §aPlatziert");
+                                sender.sendMessage("§7Position: §f" + formatLocation(block.getLocation()));
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        String lastStatus = getConfig().getString("egg.lastStatus", "");
+        String owner = getConfig().getString("egg.owner");
+        if (lastStatus.equals("placed") && getConfig().getString("egg.world") != null) {
+            String world = getConfig().getString("egg.world");
+            int x = getConfig().getInt("egg.x");
+            int y = getConfig().getInt("egg.y");
+            int z = getConfig().getInt("egg.z");
+            sender.sendMessage("§6Drachenei: §cAktuell nicht gefunden (zuletzt platziert)");
+            sender.sendMessage("§7Letzte Position: §f" + world + " " + x + " " + y + " " + z);
+            return true;
+        }
+
+        sender.sendMessage("§cDrachenei aktuell nicht gefunden.");
+        if (owner != null) sender.sendMessage("§7Zuletzt zugeordnet: §f" + owner);
+        return true;
+    }
+
+    private String formatLocation(Location location) {
+        return location.getWorld().getName() + " " + location.getBlockX() + " "
+                + location.getBlockY() + " " + location.getBlockZ();
     }
 
     private void loadFallback() {
