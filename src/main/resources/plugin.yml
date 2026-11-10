@@ -8,8 +8,7 @@ author: cuteGHG
 commands:
   dragonegg:
     description: Shows the dragon egg status and location.
-    usage: /dragonegg
-    aliases: [dragoneggwhere]
+    usage: /dragonegg where
     permission: dragoneggprotect.where
     permission-message: "§cDazu hast du keine Berechtigung."
 permissions:
