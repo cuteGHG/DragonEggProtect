@@ -26,6 +26,7 @@ import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -217,6 +218,17 @@ public final class DragonEggProtect extends JavaPlugin implements Listener {
             Item drop = player.getWorld().dropItem(placeAt.add(0.5, 0.2, 0.5), new ItemStack(Material.DRAGON_EGG));
             protectDrop(drop);
         }
+    }
+
+    // Give this plugin priority for the exact player command, even if another plugin
+    // has already registered the same /dragonegg label.
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onDragonEggCommand(PlayerCommandPreprocessEvent event) {
+        String message = event.getMessage().trim();
+        if (!message.matches("(?i)^/dragonegg\\s+where$")) return;
+
+        event.setCancelled(true);
+        onCommand(event.getPlayer(), getCommand("dragonegg"), "dragonegg", new String[] {"where"});
     }
 
     @Override
